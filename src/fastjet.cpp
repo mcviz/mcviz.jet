@@ -15,13 +15,9 @@ typedef vector<fastjet::PseudoJet> PseudoJetList;
 // Global variable, yuck, indeed.
 PyObject* PseudoJetType;
 
-static PyObject *cluster_jets(PyObject *self, PyObject *args)
+PseudoJetList pseudojets_from_pysequence(PyObject* py_input_particle_list)
 {
-    PyObject* py_input_particle_list = NULL;
-    if (!PyArg_ParseTuple(args, "O:cluster_jets", &py_input_particle_list))
-        return NULL;
-    
-    PseudoJetList fjInputs;
+    PseudoJetList pseudojets;
     // Make the input list of objects into a 
     PyObject* iterator = PyObject_GetIter(py_input_particle_list);
     PyObject* particle = NULL;
@@ -32,7 +28,11 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
         PyObject* momentum = PyObject_GetAttrString(particle, "p");        
         if (!PyArg_ParseTuple(momentum, "ddd", &px, &py, &pz))
         {
-            Py_DECREF(momentum); Py_DECREF(particle); return NULL;
+            Py_DECREF(momentum); Py_DECREF(particle);
+            PyErr_SetString(PyExc_ValueError, 
+                "pseudojets_from_pysequence: Expected momentum variable 'p' to "
+                "be three element tuple of floats.");
+            return PseudoJetList();
         }
         Py_DECREF(momentum);
         
@@ -40,33 +40,18 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
         e = PyFloat_AsDouble(energy);
         Py_DECREF(energy);
         
-        fjInputs.push_back(fastjet::PseudoJet(px, py, pz, e));
+        pseudojets.push_back(fastjet::PseudoJet(px, py, pz, e));
         
         Py_DECREF(particle);
     }
     Py_DECREF(iterator);
-    
-    // Algorithm choices
-    double Rparam = 0.4;
-    fastjet::Strategy               strategy = fastjet::Best;
-    fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
-    fastjet::JetDefinition         *jetDef =
-        new fastjet::JetDefinition(fastjet::kt_algorithm, Rparam,
-                                   recombScheme, strategy);
-    
-    // Run the clustering!
-    fastjet::ClusterSequence clustering(fjInputs, *jetDef);
-    
-    //cout << "Ran " << jetDef->description() << endl;
-    //cout << "Strategy adopted by FastJet was "
-    //     << clustering.strategy_string() << endl << endl;
+    return pseudojets;
+}
 
-    delete jetDef;
-
-    // Get the list of jets.
-    PseudoJetList inclusiveJets = clustering.inclusive_jets();
-
-    // Python list to store the result
+PyObject *build_jet_objects(PyObject* input_particle_list,  
+                            const PseudoJetList& jets, 
+                            const vector<int>& particle_jet_indices)
+{
     PyObject *result = PyList_New(0);
     
     // A python list per jet, containing the particles which belong to that jet
@@ -74,10 +59,10 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     
     // Populate the list of jets, their momenta and their energies.
     // A namedtuple per jet is put into the result list.
-    for (PseudoJetList::iterator i = inclusiveJets.begin(); 
-         i != inclusiveJets.end(); i++)
+    for (PseudoJetList::const_iterator i = jets.begin(); 
+         i != jets.end(); i++)
     {
-        fastjet::PseudoJet& jet = *i;
+        const fastjet::PseudoJet& jet = *i;
         
         PyObject* momentum = Py_BuildValue("(ddd)", jet.px(), jet.py(), jet.pz());
         PyObject* jet_particle_pylist = PyList_New(0);
@@ -98,11 +83,13 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     }
     
     // Populate the list of particles that belong to each jet
-    vector<int> particle_jet_indices = clustering.particle_jet_indices(inclusiveJets);
-    vector<int>::iterator jet_index = particle_jet_indices.begin();
-    iterator = PyObject_GetIter(py_input_particle_list);
+    //vector<int> particle_jet_indices = clustering.particle_jet_indices(inclusiveJets);
+    vector<int>::const_iterator jet_index = particle_jet_indices.begin();
+    PyObject* iterator = PyObject_GetIter(input_particle_list);
+    PyObject* particle = NULL;
     while ( (particle = PyIter_Next(iterator)) )
     {
+        // a jet list index of -1 means no jet.
         int jet_list_index = *(jet_index++);
         if (jet_list_index >= 0)
         {
@@ -117,6 +104,42 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     for (vector<PyObject*>::iterator i = jet_particle_pylists.begin(); 
          i != jet_particle_pylists.end(); i++)
         Py_DECREF(*i);
+        
+    return result;
+}
+
+static PyObject *cluster_jets(PyObject *self, PyObject *args)
+{
+    PyObject* input_particle_list = NULL;
+    if (!PyArg_ParseTuple(args, "O:cluster_jets", &input_particle_list))
+        return NULL;
+    
+    const PseudoJetList& inputs = pseudojets_from_pysequence(input_particle_list);
+    if (PyErr_Occurred())
+        return NULL;
+    
+    // Algorithm choices
+    double Rparam = 0.4;
+    fastjet::Strategy               strategy = fastjet::Best;
+    fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
+    fastjet::JetDefinition*         jetDef =
+        new fastjet::JetDefinition(fastjet::kt_algorithm, Rparam,
+                                   recombScheme, strategy);
+    
+    // Run the clustering!
+    fastjet::ClusterSequence clustering(inputs, *jetDef);
+    
+    //cout << "Ran " << jetDef->description() << endl;
+    //cout << "Strategy adopted by FastJet was "
+    //     << clustering.strategy_string() << endl << endl;
+
+    delete jetDef;
+
+    // Get the list of jets.
+    const PseudoJetList& jets = clustering.inclusive_jets();
+    const vector<int>& particle_jet_indices = clustering.particle_jet_indices(jets);
+
+    PyObject* result = build_jet_objects(input_particle_list, jets, particle_jet_indices);
     
     return result;
 }
@@ -127,17 +150,17 @@ static PyMethodDef JetMethods[] = {
     {NULL, NULL, 0, NULL}        /* Sentinel */
 };
 
-
-void make_pseudojet_namedtuple()
+PyObject* make_namedtuple(const char* name, const char* fields)
 {
     PyObject* collections_module = PyImport_ImportModule("collections");
     PyObject* namedtuple = PyObject_GetAttrString(collections_module, "namedtuple");
     
-    PseudoJetType = PyObject_CallFunction(namedtuple, const_cast<char*>("ss"), "PseudoJet", "particles p e");
-    
+    PyObject* tupletype = PyObject_CallFunction(
+        namedtuple, const_cast<char*>("ss"), name, fields);
+        
     Py_DECREF(namedtuple);
     Py_DECREF(collections_module);
-    // Hold a reference to PseudoJetType always.
+    return tupletype;
 }
 
 PyMODINIT_FUNC
@@ -148,8 +171,9 @@ initfastjet(void)
     m = Py_InitModule("fastjet", JetMethods);
     if (m == NULL)
         return;
-        
-    make_pseudojet_namedtuple();
-    PyObject_SetAttrString(m, "PseudoJet", PseudoJetType);
     
+    PseudoJetType = make_namedtuple("PseudoJet", "particles e p");
+    if (!PseudoJetType)
+        return;
+    PyObject_SetAttrString(m, "PseudoJet", PseudoJetType);
 }
