@@ -17,7 +17,6 @@ PyObject* PseudoJetType;
 
 static PyObject *cluster_jets(PyObject *self, PyObject *args)
 {
-    cout << "cluster_jets called" << endl;
     PyObject* py_input_particle_list = NULL;
     if (!PyArg_ParseTuple(args, "O:cluster_jets", &py_input_particle_list))
         return NULL;
@@ -27,7 +26,6 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     PyObject* iterator = PyObject_GetIter(py_input_particle_list);
     PyObject* particle = NULL;
     
-    cout << "Entering while loop" << endl;
     while ( (particle = PyIter_Next(iterator)) )
     {
         double px, py, pz, e;
@@ -48,7 +46,6 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     }
     Py_DECREF(iterator);
     
-    cout << "Running clustering" << endl;
     // Algorithm choices
     double Rparam = 0.4;
     fastjet::Strategy               strategy = fastjet::Best;
@@ -75,7 +72,6 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     // A python list per jet, containing the particles which belong to that jet
     vector<PyObject*> jet_particle_pylists;
     
-    cout << "Making jets" << endl;
     // Populate the list of jets, their momenta and their energies.
     // A namedtuple per jet is put into the result list.
     for (PseudoJetList::iterator i = inclusiveJets.begin(); 
@@ -121,8 +117,6 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     for (vector<PyObject*>::iterator i = jet_particle_pylists.begin(); 
          i != jet_particle_pylists.end(); i++)
         Py_DECREF(*i);
-        
-    cout << "Left cluster_jets" << endl;
     
     return result;
 }
