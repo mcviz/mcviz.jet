@@ -46,3 +46,11 @@ def test_for_leaks():
         del jets
         # Check that we're not obviously leaking.
         assert get_refstate() == first_refstate, "Leaking objects!"
+
+def test_all_algorithms():
+    
+    final_particles = get_final_state_particles()
+    
+    from mcviz.jet import JetAlgorithms
+    for alg in JetAlgorithms:
+        jets = cluster_jets(final_particles, alg)

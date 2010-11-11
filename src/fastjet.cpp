@@ -111,7 +111,10 @@ PyObject *build_jet_objects(PyObject* input_particle_list,
 static PyObject *cluster_jets(PyObject *self, PyObject *args)
 {
     PyObject* input_particle_list = NULL;
-    if (!PyArg_ParseTuple(args, "O:cluster_jets", &input_particle_list))
+    fastjet::JetAlgorithm jet_algorithm = fastjet::kt_algorithm;
+    if (!PyArg_ParseTuple(args, "O|i:cluster_jets", 
+                          &input_particle_list,
+                          &jet_algorithm))
         return NULL;
     
     const PseudoJetList& inputs = pseudojets_from_pysequence(input_particle_list);
@@ -123,7 +126,7 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     fastjet::Strategy               strategy = fastjet::Best;
     fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
     fastjet::JetDefinition*         jetDef =
-        new fastjet::JetDefinition(fastjet::kt_algorithm, Rparam,
+        new fastjet::JetDefinition(jet_algorithm, Rparam,
                                    recombScheme, strategy);
     
     // Run the clustering!
@@ -176,4 +179,25 @@ initfastjet(void)
     if (!PseudoJetType)
         return;
     PyObject_SetAttrString(m, "PseudoJet", PseudoJetType);
+    
+    PyObject* JetAlgorithmsEnum = make_namedtuple("JetAlgorithmsEnum", "kt_algorithm cambridge_algorithm antikt_algorithm genkt_algorithm cambridge_for_passive_algorithm genkt_for_passive_algorithm ee_kt_algorithm ee_genkt_algorithm");
+    if (!JetAlgorithmsEnum)
+        return;
+        
+    PyObject* JetAlgorithms = PyObject_CallFunction(
+        JetAlgorithmsEnum, const_cast<char *>("iiiiiiii"),
+        fastjet::kt_algorithm,
+        fastjet::cambridge_algorithm,
+        fastjet::antikt_algorithm,
+        fastjet::genkt_algorithm,
+        fastjet::cambridge_for_passive_algorithm,
+        fastjet::genkt_for_passive_algorithm,
+        fastjet::ee_kt_algorithm,
+        fastjet::ee_genkt_algorithm);
+        
+    Py_DECREF(JetAlgorithmsEnum);
+    if (!JetAlgorithms)
+        return;
+        
+    PyObject_SetAttrString(m, "JetAlgorithms", JetAlgorithms);
 }

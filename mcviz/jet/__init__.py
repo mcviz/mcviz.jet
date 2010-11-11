@@ -1,4 +1,4 @@
-from fastjet import cluster_jets, PseudoJet
+from fastjet import cluster_jets, PseudoJet, JetAlgorithms
 
 def PseudoJet__repr__(self):
     args = self.p + (self.e, len(self.particles))
