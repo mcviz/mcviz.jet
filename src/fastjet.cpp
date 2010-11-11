@@ -7,6 +7,7 @@ using std::vector;
 using std::cout;
 using std::endl;
 
+#include "fastjet/Error.hh"
 #include "fastjet/PseudoJet.hh"
 #include "fastjet/ClusterSequence.hh"
 
@@ -18,10 +19,9 @@ PyObject* PseudoJetType;
 PseudoJetList pseudojets_from_pysequence(PyObject* py_input_particle_list)
 {
     PseudoJetList pseudojets;
-    // Make the input list of objects into a 
+    
     PyObject* iterator = PyObject_GetIter(py_input_particle_list);
     PyObject* particle = NULL;
-    
     while ( (particle = PyIter_Next(iterator)) )
     {
         double px, py, pz, e;
@@ -121,30 +121,36 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     if (PyErr_Occurred())
         return NULL;
     
-    // Algorithm choices
-    double Rparam = 0.4;
-    fastjet::Strategy               strategy = fastjet::Best;
-    fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
-    fastjet::JetDefinition*         jetDef =
-        new fastjet::JetDefinition(jet_algorithm, Rparam,
-                                   recombScheme, strategy);
-    
-    // Run the clustering!
-    fastjet::ClusterSequence clustering(inputs, *jetDef);
-    
-    //cout << "Ran " << jetDef->description() << endl;
-    //cout << "Strategy adopted by FastJet was "
-    //     << clustering.strategy_string() << endl << endl;
+    try {
+        // Algorithm choices
+        double Rparam = 0.4;
+        fastjet::Strategy               strategy = fastjet::Best;
+        fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
+        fastjet::JetDefinition*         jetDef =
+            new fastjet::JetDefinition(jet_algorithm, Rparam,
+                                       recombScheme, strategy);
+        
+        // Run the clustering!
+        fastjet::ClusterSequence clustering(inputs, *jetDef);
+        
+        //cout << "Ran " << jetDef->description() << endl;
+        //cout << "Strategy adopted by FastJet was "
+        //     << clustering.strategy_string() << endl << endl;
 
-    delete jetDef;
+        delete jetDef;
+        
+        // Get the list of jets.
+        const PseudoJetList& jets = clustering.inclusive_jets();
+        const vector<int>& particle_jet_indices = clustering.particle_jet_indices(jets);
 
-    // Get the list of jets.
-    const PseudoJetList& jets = clustering.inclusive_jets();
-    const vector<int>& particle_jet_indices = clustering.particle_jet_indices(jets);
-
-    PyObject* result = build_jet_objects(input_particle_list, jets, particle_jet_indices);
-    
-    return result;
+        PyObject* result = build_jet_objects(input_particle_list, jets, particle_jet_indices);
+        return result;
+        
+    } catch (const fastjet::Error& e)
+    {
+        PyErr_Format(PyExc_RuntimeError, "fastjet::Error: %s", e.message().c_str());
+        return NULL;
+    }    
 }
 
 static PyMethodDef JetMethods[] = {
@@ -174,6 +180,8 @@ initfastjet(void)
     m = Py_InitModule("fastjet", JetMethods);
     if (m == NULL)
         return;
+    
+    fastjet::Error::set_print_errors(false);
     
     PseudoJetType = make_namedtuple("PseudoJet", "particles e p");
     if (!PseudoJetType)

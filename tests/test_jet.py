@@ -1,3 +1,5 @@
+from logging import getLogger; log = getLogger("mcviz.jet.tests")
+
 from mcviz.loaders import hepmc 
 from mcviz.jet import cluster_jets
 
@@ -52,5 +54,11 @@ def test_all_algorithms():
     final_particles = get_final_state_particles()
     
     from mcviz.jet import JetAlgorithms
-    for alg in JetAlgorithms:
-        jets = cluster_jets(final_particles, alg)
+    for algname, alg in zip(JetAlgorithms._fields, JetAlgorithms):
+        try:
+            jets = cluster_jets(final_particles, alg)
+        except RuntimeError:
+            log.exception("Caught RuntimeError for algname=%s, continuing..", algname)
+            raise
+    
+    
