@@ -6,11 +6,15 @@ from sys import getrefcount
 # Note that these tests expect
 #r /usr/bin/nosetests -sv mcviz.jet
 
+def test_minimal():
+    cluster_jets([])
+
 def get_final_state_particles():
     
     vertices, particles = hepmc.load_first_event("pythia01.hepmc")    
     final_particles = [p for p in particles.values() if p.final_state]
     return final_particles
+
 
 def test_jet_algorithm():
     """
