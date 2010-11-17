@@ -25,7 +25,9 @@ PseudoJetList pseudojets_from_pysequence(PyObject* py_input_particle_list)
     while ( (particle = PyIter_Next(iterator)) )
     {
         double px, py, pz, e;
-        PyObject* momentum = PyObject_GetAttrString(particle, "p");        
+        PyObject* momentum = PyObject_GetAttrString(particle, "p");
+        if (!momentum)
+            return pseudojets;
         if (!PyArg_ParseTuple(momentum, "ddd", &px, &py, &pz))
         {
             Py_DECREF(momentum); Py_DECREF(particle);
