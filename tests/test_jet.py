@@ -1,6 +1,6 @@
 from logging import getLogger; log = getLogger("mcviz.jet.tests")
 
-from mcviz.loaders import hepmc 
+from mcviz.graph.loaders import hepmc
 from mcviz.jet import cluster_jets
 
 from sys import getrefcount
