@@ -190,7 +190,7 @@ initfastjet(void)
         return;
     PyObject_SetAttrString(m, "PseudoJet", PseudoJetType);
     
-    PyObject* JetAlgorithmsEnum = make_namedtuple("JetAlgorithmsEnum", "kt_algorithm cambridge_algorithm antikt_algorithm genkt_algorithm cambridge_for_passive_algorithm genkt_for_passive_algorithm ee_kt_algorithm ee_genkt_algorithm");
+    PyObject* JetAlgorithmsEnum = make_namedtuple("JetAlgorithmsEnum", "kt cambridge antikt genkt cambridge_for_passive genkt_for_passive ee_kt ee_genkt");
     if (!JetAlgorithmsEnum)
         return;
         
