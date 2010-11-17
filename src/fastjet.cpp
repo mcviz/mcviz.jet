@@ -183,7 +183,7 @@ initfastjet(void)
     
     fastjet::Error::set_print_errors(false);
     
-    PseudoJetType = make_namedtuple("PseudoJet", "particles e p");
+    PseudoJetType = make_namedtuple("PseudoJet", "particles p e");
     if (!PseudoJetType)
         return;
     PyObject_SetAttrString(m, "PseudoJet", PseudoJetType);
