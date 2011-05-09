@@ -4,6 +4,7 @@ from logging import getLogger; log = getLogger("mcviz.jet.setup")
 
 import hashlib
 import os
+import platform
 import sys
 import tarfile
 import urllib2
@@ -19,6 +20,8 @@ from sys import stdout
 from distutils.core import setup, Extension
 
 from distutils.command.build_ext import build_ext as _build_ext
+
+PYTHON_IS_32BIT = "32bit" in platform.architecture()
 
 FASTJET_URL_SHA256HASHES = [
     ("http://www.lpthe.jussieu.fr/~salam/fastjet/repo/fastjet-2.4.3.tar.gz", 
@@ -56,7 +59,11 @@ def fastjet_config(prefix=None):
     if bad:
         raise FastJetConfigFailed
     
-    return [pjoin(fastjet_prefix, "include")], output.split(" ")
+    link_args = output.split(" ")
+    if PYTHON_IS_32BIT:
+        link_args.append("-m32")
+    
+    return [pjoin(fastjet_prefix, "include")], link_args
     
 def download_file(url):
     """
@@ -127,6 +134,11 @@ def install_fastjet(prefix):
     chdir(fastjet_path)
     
     print "Configuring fastjet"
+    
+    if PYTHON_IS_32BIT:
+        os.environ["CFLAGS"] = "-m32 " + os.environ.get("CFLAGS", "")
+        os.environ["CXXFLAGS"] = "-m32 " + os.environ.get("CXXFLAGS", "")
+        os.environ["LDFLAGS"] = "-m32 " + os.environ.get("LDFLAGS", "")
     
     status, output = getstatusoutput("./configure --prefix={0}".format(prefix))
     if status:
