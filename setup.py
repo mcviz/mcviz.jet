@@ -16,8 +16,7 @@ from textwrap import dedent
 from sys import stdout
 
 # These two are sensitive to import order (!?)
-from setuptools import setup
-from distutils.core import Extension
+from distutils.core import setup, Extension
 
 from distutils.command.build_ext import build_ext as _build_ext
 
@@ -124,7 +123,7 @@ def install_fastjet(prefix):
         
     fastjet_path = fetch_fastjet(path)
     
-    oldpath = getcwd
+    oldpath = getcwd()
     chdir(fastjet_path)
     
     print "Configuring fastjet"
@@ -143,7 +142,7 @@ def install_fastjet(prefix):
     
     print ".. fastjet build completed"
     
-    chdir(oldscript)
+    chdir(oldpath)
 
 def setup_fastjet():
     """
