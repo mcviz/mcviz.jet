@@ -114,9 +114,11 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
 {
     PyObject* input_particle_list = NULL;
     fastjet::JetAlgorithm jet_algorithm = fastjet::kt_algorithm;
-    if (!PyArg_ParseTuple(args, "O|i:cluster_jets", 
+    double Rparam = 0.4;
+    if (!PyArg_ParseTuple(args, "O|id:cluster_jets", 
                           &input_particle_list,
-                          &jet_algorithm))
+                          &jet_algorithm, 
+                          &Rparam))
         return NULL;
     
     const PseudoJetList& inputs = pseudojets_from_pysequence(input_particle_list);
@@ -125,7 +127,6 @@ static PyObject *cluster_jets(PyObject *self, PyObject *args)
     
     try {
         // Algorithm choices
-        double Rparam = 0.4;
         fastjet::Strategy               strategy = fastjet::Best;
         fastjet::RecombinationScheme    recombScheme = fastjet::E_scheme;
         fastjet::JetDefinition*         jetDef =
