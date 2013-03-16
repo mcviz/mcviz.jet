@@ -1,7 +1,7 @@
+from __future__ import division
+
 from distribute_setup import use_setuptools
 use_setuptools()
-
-from __future__ import division
 
 from logging import getLogger; log = getLogger("mcviz.jet.setup")
 
